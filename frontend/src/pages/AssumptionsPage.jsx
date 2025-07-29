@@ -24,6 +24,7 @@ const AssumptionsPage = ({ open, onClose }) => {
         'Users must be logged in to view the book list',
         'Only registered users can add new books',
         'User sessions are managed using JWT tokens',
+        'User gets logged out when jwt token expires'
       ],
       icon: <LockIcon color="primary" />
     },

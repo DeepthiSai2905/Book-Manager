@@ -228,12 +228,12 @@ let books = [
   {
     "id": "8532099e-991e-48b0-a15a-cd8c7450cdb4",
     "title": "Me Before You",
-    "author": "Jojo Moyes - Updated",
+    "author": "Jojo Moyes - Updat",
     "genre": "Romance",
     "yearPublished": 2012,
     "createdBy": "admin",
     "createdAt": "2025-07-29T17:39:47.792Z",
-    "updatedAt": "2025-07-29T17:42:09.729Z"
+    "updatedAt": "2025-07-29T19:59:42.031Z"
   },
   {
     "id": "5383fc7e-3a99-4663-b93b-828776983c12",

@@ -78,7 +78,7 @@ The application will be available at `http://localhost:3000`
 
 ### Backend (`.env`)
 ```
-PORT=5000
+PORT=5001
 NODE_ENV=development
 JWT_SECRET=your-super-secret-jwt-key
 JWT_EXPIRES_IN=1h

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Box, 
   Typography, 
@@ -16,9 +17,8 @@ import {
   InputLabel,
   Pagination,
   Modal,
-  Paper,
   Alert,
-  LinearProgress,
+  CircularProgress,
   Chip,
   Dialog,
   DialogTitle,
@@ -28,12 +28,12 @@ import {
 import { 
   Add, 
   Search, 
-  FilterList, 
   Close, 
   Edit, 
   Delete 
 } from '@mui/icons-material';
-import { useBooks } from '../contexts/BookContext';
+import api from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const modalStyle = {
   position: 'absolute',
@@ -59,11 +59,15 @@ const cardStyle = {
 };
 
 const BookList = () => {
-  const { books, loading, error, deleteBook, addBook, updateBook } = useBooks();
-  const [open, setOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [bookToDelete, setBookToDelete] = useState(null);
-  const [editingBook, setEditingBook] = useState(null);
+  const [books, setBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [genreFilter, setGenreFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedBook, setSelectedBook] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     author: '',
@@ -71,23 +75,80 @@ const BookList = () => {
     yearPublished: ''
   });
   const [formError, setFormError] = useState('');
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   
-  // Filter and pagination state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [genreFilter, setGenreFilter] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [filteredBooks, setFilteredBooks] = useState([]);
-  const [genres, setGenres] = useState([]);
-  const itemsPerPage = 6;
+  // Available genres for the dropdown
+  const availableGenres = [
+    'Fiction', 'Non-Fiction', 'Science Fiction', 'Fantasy', 'Mystery',
+    'Thriller', 'Romance', 'Biography', 'History', 'Self-Help'
+  ];
 
-  // Extract all unique genres
+  // Fetch books on component mount
   useEffect(() => {
-    const uniqueGenres = [...new Set(books.map(book => book.genre))];
-    setGenres(uniqueGenres);
+    const fetchBooks = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get('/books');
+        setBooks(response.data);
+        setError(null);
+      } catch (err) {
+        setError('Failed to fetch books');
+        console.error('Error fetching books:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBooks();
+  }, []);
+
+  const addBook = async (bookData) => {
+    try {
+      // Add createdBy field with current user's username
+      const bookWithCreator = {
+        ...bookData,
+        createdBy: user?.username || 'anonymous'
+      };
+      const response = await api.post('/books', bookWithCreator);
+      setBooks([...books, response.data]);
+      return { success: true };
+    } catch (error) {
+      console.error('Error adding book:', error);
+      return { success: false, message: error.response?.data?.message || 'Failed to add book' };
+    }
+  };
+
+  const updateBook = async (id, bookData) => {
+    try {
+      const response = await api.put(`/books/${id}`, bookData);
+      setBooks(books.map(book => book.id === id ? response.data : book));
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating book:', error);
+      return { success: false, message: error.response?.data?.message || 'Failed to update book' };
+    }
+  };
+
+  const deleteBook = async (id) => {
+    try {
+      await api.delete(`/books/${id}`);
+      setBooks(books.filter(book => book.id !== id));
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting book:', error);
+      return { success: false, message: error.response?.data?.message || 'Failed to delete book' };
+    }
+  };
+
+    // Get unique genres from books
+  const genres = useMemo(() => {
+    const genreSet = new Set(books.map(book => book.genre).filter(Boolean));
+    return Array.from(genreSet).sort();
   }, [books]);
 
-  // Apply filters and pagination
-  useEffect(() => {
+  // Filter and pagination
+  const filteredBooks = useMemo(() => {
     let result = [...books];
     
     // Apply search
@@ -95,8 +156,7 @@ const BookList = () => {
       const term = searchTerm.toLowerCase();
       result = result.filter(book => 
         book.title.toLowerCase().includes(term) ||
-        book.author.toLowerCase().includes(term) ||
-        book.genre.toLowerCase().includes(term)
+        book.author.toLowerCase().includes(term)
       );
     }
     
@@ -105,67 +165,39 @@ const BookList = () => {
       result = result.filter(book => book.genre === genreFilter);
     }
     
-    setFilteredBooks(result);
-    setCurrentPage(1); // Reset to first page when filters change
+    return result;
   }, [books, searchTerm, genreFilter]);
 
-  // Get current books for pagination
+  // Pagination
+  const itemsPerPage = 6;
+  const totalPages = Math.ceil(filteredBooks.length / itemsPerPage);
   const indexOfLastBook = currentPage * itemsPerPage;
   const indexOfFirstBook = indexOfLastBook - itemsPerPage;
   const currentBooks = filteredBooks.slice(indexOfFirstBook, indexOfLastBook);
-  const totalPages = Math.ceil(filteredBooks.length / itemsPerPage);
 
-  const handlePageChange = (event, value) => {
-    setCurrentPage(value);
+  const handlePageChange = (event, page) => {
+    setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleOpen = (book = null) => {
-    if (book) {
-      setEditingBook(book);
-      setFormData({
-        title: book.title,
-        author: book.author,
-        genre: book.genre,
-        yearPublished: book.yearPublished.toString()
-      });
-    } else {
-      setEditingBook(null);
-      setFormData({
-        title: '',
-        author: '',
-        genre: '',
-        yearPublished: ''
-      });
-    }
+  const handleOpenModal = (book = null) => {
+    setSelectedBook(book);
+    setFormData({
+      title: book?.title || '',
+      author: book?.author || '',
+      genre: book?.genre || '',
+      yearPublished: book?.yearPublished?.toString() || ''
+    });
     setFormError('');
-    setOpen(true);
+    setIsModalOpen(true);
   };
 
-  const handleClose = () => {
-    setOpen(false);
-    setFormError('');
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedBook(null);
   };
 
-  const handleDeleteClick = (book) => {
-    setBookToDelete(book);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (bookToDelete) {
-      await deleteBook(bookToDelete.id);
-      setDeleteDialogOpen(false);
-      setBookToDelete(null);
-    }
-  };
-
-  const handleDeleteCancel = () => {
-    setDeleteDialogOpen(false);
-    setBookToDelete(null);
-  };
-
-  const handleChange = (e) => {
+  const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -175,48 +207,75 @@ const BookList = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setFormError('');
     
+    // Basic validation
     if (!formData.title || !formData.author || !formData.genre || !formData.yearPublished) {
       setFormError('All fields are required');
       return;
     }
-    
-    const year = parseInt(formData.yearPublished);
-    if (isNaN(year) || year < 0 || year > new Date().getFullYear() + 1) {
+
+    const year = parseInt(formData.yearPublished, 10);
+    if (isNaN(year) || year < 1000 || year > new Date().getFullYear() + 1) {
       setFormError('Please enter a valid year');
       return;
     }
-    
+
+    const bookData = {
+      ...formData,
+      yearPublished: year
+    };
+
     try {
-      const bookData = {
-        ...formData,
-        yearPublished: year
-      };
-      
-      if (editingBook) {
-        await updateBook(editingBook.id, bookData);
+      setLoading(true);
+      if (selectedBook) {
+        await updateBook(selectedBook.id, bookData);
       } else {
         await addBook(bookData);
       }
-      
-      handleClose();
+      setIsModalOpen(false);
     } catch (error) {
       setFormError(error.message || 'An error occurred');
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleConfirmDelete = async () => {
+    if (!selectedBook) return;
+    
+    try {
+      setLoading(true);
+      await deleteBook(selectedBook.id);
+      setIsDeleteDialogOpen(false);
+    } catch (error) {
+      console.error('Failed to delete book:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Render loading state
   if (loading && books.length === 0) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <LinearProgress sx={{ width: '100%' }} />
+        <CircularProgress />
       </Box>
     );
   }
 
+  // Render error state
   if (error) {
-    return <Alert severity="error" sx={{ m: 2 }}>{error}</Alert>;
+    return (
+      <Alert severity="error" sx={{ m: 2 }}>
+        {error}
+      </Alert>
+    );
   }
+
+  const handleDeleteClick = (book) => {
+    setSelectedBook(book);
+    setIsDeleteDialogOpen(true);
+  };
 
   return (
     <Box sx={{ p: 3 }}>
@@ -235,7 +294,7 @@ const BookList = () => {
         <Button 
           variant="contained" 
           startIcon={<Add />} 
-          onClick={() => handleOpen()}
+          onClick={() => handleOpenModal()}
           sx={{ minWidth: '150px' }}
         >
           Add Book
@@ -264,10 +323,9 @@ const BookList = () => {
               value={genreFilter}
               label="Filter by Genre"
               onChange={(e) => setGenreFilter(e.target.value)}
-              startAdornment={<FilterList sx={{ color: 'action.active', mr: 1 }} />}
             >
               <MenuItem value="all">All Genres</MenuItem>
-              {genres.map((genre) => (
+              {availableGenres.map((genre) => (
                 <MenuItem key={genre} value={genre}>
                   {genre}
                 </MenuItem>
@@ -313,21 +371,29 @@ const BookList = () => {
                     </Box>
                   </CardContent>
                   <CardActions sx={{ justifyContent: 'flex-end', p: 2 }}>
-                    <Button 
-                      size="small" 
-                      onClick={() => handleOpen(book)}
-                      startIcon={<Edit />}
-                    >
-                      Edit
-                    </Button>
-                    <Button 
-                      size="small" 
-                      color="error"
-                      onClick={() => handleDeleteClick(book)}
-                      startIcon={<Delete />}
-                    >
-                      Delete
-                    </Button>
+                    {user && user.username === book.createdBy ? (
+                      <>
+                        <Button 
+                          size="small" 
+                          onClick={() => handleOpenModal(book)}
+                          startIcon={<Edit />}
+                        >
+                          Edit
+                        </Button>
+                        <Button 
+                          size="small" 
+                          color="error"
+                          onClick={() => handleDeleteClick(book)}
+                          startIcon={<Delete />}
+                        >
+                          Delete
+                        </Button>
+                      </>
+                    ) : (
+                      <Typography variant="caption" color="text.secondary">
+                        Created by {book.createdBy}
+                      </Typography>
+                    )}
                   </CardActions>
                 </Card>
               </Grid>
@@ -351,13 +417,13 @@ const BookList = () => {
       )}
 
       {/* Add/Edit Book Modal */}
-      <Modal open={open} onClose={handleClose}>
+      <Modal open={isModalOpen} onClose={handleCloseModal}>
         <Box sx={modalStyle}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6" component="h2">
-              {editingBook ? 'Edit Book' : 'Add New Book'}
+              {selectedBook ? 'Edit Book' : 'Add New Book'}
             </Typography>
-            <IconButton onClick={handleClose} size="small">
+            <IconButton onClick={handleCloseModal} size="small">
               <Close />
             </IconButton>
           </Box>
@@ -374,9 +440,10 @@ const BookList = () => {
               fullWidth
               variant="outlined"
               value={formData.title}
-              onChange={handleChange}
+              onChange={handleInputChange}
               sx={{ mb: 2 }}
               required
+              disabled={loading}
             />
             <TextField
               margin="normal"
@@ -386,22 +453,26 @@ const BookList = () => {
               fullWidth
               variant="outlined"
               value={formData.author}
-              onChange={handleChange}
+              onChange={handleInputChange}
               sx={{ mb: 2 }}
               required
+              disabled={loading}
             />
-            <TextField
-              margin="normal"
-              name="genre"
-              label="Genre"
-              type="text"
-              fullWidth
-              variant="outlined"
-              value={formData.genre}
-              onChange={handleChange}
-              sx={{ mb: 2 }}
-              required
-            />
+            <FormControl fullWidth margin="normal" required disabled={loading}>
+              <InputLabel>Genre</InputLabel>
+              <Select
+                name="genre"
+                value={formData.genre}
+                label="Genre"
+                onChange={handleInputChange}
+              >
+                {availableGenres.map((genre) => (
+                  <MenuItem key={genre} value={genre}>
+                    {genre}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             <TextField
               margin="normal"
               name="yearPublished"
@@ -410,22 +481,29 @@ const BookList = () => {
               fullWidth
               variant="outlined"
               value={formData.yearPublished}
-              onChange={handleChange}
+              onChange={handleInputChange}
               inputProps={{
-                min: 0,
-                max: new Date().getFullYear() + 1
+                min: 1000,
+                max: new Date().getFullYear() + 1,
+                step: 1,
               }}
               required
+              disabled={loading}
+              sx={{ mt: 2 }}
             />
             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-              <Button onClick={handleClose}>
+              <Button 
+                onClick={handleCloseModal}
+                disabled={loading}
+              >
                 Cancel
               </Button>
               <Button 
                 type="submit" 
                 variant="contained"
+                disabled={loading}
               >
-                {editingBook ? 'Update' : 'Add'} Book
+                {loading ? 'Saving...' : (selectedBook ? 'Update' : 'Add')} Book
               </Button>
             </Box>
           </Box>
@@ -434,25 +512,31 @@ const BookList = () => {
 
       {/* Delete Confirmation Dialog */}
       <Dialog
-        open={deleteDialogOpen}
-        onClose={handleDeleteCancel}
+        open={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
         maxWidth="xs"
         fullWidth
       >
         <DialogTitle>Delete Book</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete "{bookToDelete?.title}" by {bookToDelete?.author}?
+            Are you sure you want to delete "{selectedBook?.title}" by {selectedBook?.author}?
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleDeleteCancel}>Cancel</Button>
           <Button 
-            onClick={handleDeleteConfirm} 
+            onClick={() => setIsDeleteDialogOpen(false)}
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleConfirmDelete}
             color="error"
             variant="contained"
+            disabled={loading}
           >
-            Delete
+            {loading ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>

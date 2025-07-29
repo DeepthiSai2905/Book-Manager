@@ -2,8 +2,12 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
+// JWT configuration
+if (!process.env.JWT_SECRET || !process.env.JWT_EXPIRES_IN) {
+  throw new Error('JWT_SECRET and JWT_EXPIRES_IN must be defined in environment variables');
+}
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN;
 
 // Hardcoded users (in a real app, this would be in a database)
 const users = [
@@ -22,8 +26,9 @@ router.post('/login', async (req, res) => {
 
     // Check for existing user
     const user = users.find(u => u.username === username && u.password === password);
-    
+    console.log("User found:", user);
     if (!user) {
+      console.log("Invalid credentials");
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
@@ -49,6 +54,7 @@ router.post('/login', async (req, res) => {
         });
       }
     );
+    console.log("Login successful");
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ message: 'Server error' });

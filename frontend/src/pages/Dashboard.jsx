@@ -1,12 +1,17 @@
 import { Container, Box, Typography, Button, AppBar, Toolbar, CssBaseline } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import BookList from '../components/BookList';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const handleLogout = () => {
-    logout();
+    const loggedOut = logout();
+    if (loggedOut) {
+      navigate('/login');
+    }
   };
 
   return (

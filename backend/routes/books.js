@@ -2,26 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
 const auth = require('../authMiddleware');
-
-// In-memory storage for books
-let books = [
-  { 
-    id: '1', 
-    title: 'The Alchemist', 
-    author: 'Paulo Coelho', 
-    genre: 'Fiction', 
-    yearPublished: 1988,
-    createdBy: 'admin' // username of the user who created the book
-  }, 
-  { 
-    id: '2', 
-    title: 'Clean Code', 
-    author: 'Robert C. Martin', 
-    genre: 'Programming', 
-    yearPublished: 2008,
-    createdBy: 'admin' // username of the user who created the book
-  }
-];
+let books = require('../data/books');
 
 // Middleware to check if user is the owner of the book
 const isOwner = (req, res, next) => {
@@ -30,10 +11,24 @@ const isOwner = (req, res, next) => {
     return res.status(404).json({ message: 'Book not found' });
   }
   
-  if (book.createdBy !== req.user.username) {
-    return res.status(403).json({ message: 'Not authorized to modify this book' });
+  // Ensure createdBy exists and matches the current user
+  if (!book.createdBy || book.createdBy !== req.user.username) {
+    return res.status(403).json({ 
+      message: 'You do not have permission to modify this book' 
+    });
   }
   next();
+};
+
+// Helper function to save books back to the data file
+const saveBooks = () => {
+  const fs = require('fs');
+  const path = require('path');
+  const filePath = path.join(__dirname, '../data/books.js');
+  fs.writeFileSync(
+    filePath,
+    `let books = ${JSON.stringify(books, null, 2)};\n\nmodule.exports = books;`
+  );
 };
 
 /**
@@ -42,6 +37,16 @@ const isOwner = (req, res, next) => {
  * @access  Private
  */
 router.get('/', auth, (req, res) => {
+  try {
+    // Only return books created by the logged-in user
+    res.json(books);
+  } catch (err) {
+    console.error('Error fetching books:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.get('/mybooks', auth, (req, res) => {
   try {
     // Only return books created by the logged-in user
     const userBooks = books.filter(book => book.createdBy === req.user.username);
@@ -82,6 +87,7 @@ router.post('/', auth, async (req, res) => {
     };
 
     books.push(newBook);
+    saveBooks(); // Save to file
     res.status(201).json(newBook);
   } catch (err) {
     console.error('Error adding book:', err);
@@ -105,13 +111,8 @@ router.put('/:id', auth, isOwner, (req, res) => {
       return res.status(404).json({ message: 'Book not found' });
     }
 
-    // Check if user is the creator or admin
-    if (books[bookIndex].createdBy !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to update this book' });
-    }
-
-    // Update book
-    books[bookIndex] = {
+    // Update only the allowed fields
+    const updatedBook = {
       ...books[bookIndex],
       title: title || books[bookIndex].title,
       author: author || books[bookIndex].author,
@@ -120,7 +121,9 @@ router.put('/:id', auth, isOwner, (req, res) => {
       updatedAt: new Date().toISOString()
     };
 
-    res.json(books[bookIndex]);
+    books[bookIndex] = updatedBook;
+    saveBooks(); // Save to file
+    res.json(updatedBook);
   } catch (err) {
     console.error('Error updating book:', err);
     res.status(500).json({ message: 'Server error' });
@@ -136,6 +139,7 @@ router.delete('/:id', auth, isOwner, (req, res) => {
   try {
     const { id } = req.params;
     books = books.filter(book => book.id !== id);
+    saveBooks(); // Save to file
     res.json({ message: 'Book deleted successfully' });
   } catch (err) {
     console.error('Error deleting book:', err);

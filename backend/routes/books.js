@@ -1,0 +1,146 @@
+const express = require('express');
+const { v4: uuidv4 } = require('uuid');
+const router = express.Router();
+const auth = require('../authMiddleware');
+
+// In-memory storage for books
+let books = [
+  { 
+    id: '1', 
+    title: 'The Alchemist', 
+    author: 'Paulo Coelho', 
+    genre: 'Fiction', 
+    yearPublished: 1988,
+    createdBy: 'admin' // username of the user who created the book
+  }, 
+  { 
+    id: '2', 
+    title: 'Clean Code', 
+    author: 'Robert C. Martin', 
+    genre: 'Programming', 
+    yearPublished: 2008,
+    createdBy: 'admin' // username of the user who created the book
+  }
+];
+
+// Middleware to check if user is the owner of the book
+const isOwner = (req, res, next) => {
+  const book = books.find(b => b.id === req.params.id);
+  if (!book) {
+    return res.status(404).json({ message: 'Book not found' });
+  }
+  
+  if (book.createdBy !== req.user.username) {
+    return res.status(403).json({ message: 'Not authorized to modify this book' });
+  }
+  next();
+};
+
+/**
+ * @route   GET api/books
+ * @desc    Get all books for the logged-in user
+ * @access  Private
+ */
+router.get('/', auth, (req, res) => {
+  try {
+    // Only return books created by the logged-in user
+    const userBooks = books.filter(book => book.createdBy === req.user.username);
+    res.json(userBooks);
+  } catch (err) {
+    console.error('Error fetching books:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/**
+ * @route   POST api/books
+ * @desc    Add a new book
+ * @access  Private
+ */
+router.post('/', auth, async (req, res) => {
+  try {
+    const { title, author, genre, yearPublished } = req.body;
+
+    // Validation
+    if (!title || !author || !genre || !yearPublished) {
+      return res.status(400).json({ message: 'Please include all fields' });
+    }
+
+    const year = parseInt(yearPublished);
+    if (isNaN(year) || year < 0 || year > new Date().getFullYear() + 1) {
+      return res.status(400).json({ message: 'Please enter a valid year' });
+    }
+
+    const newBook = {
+      id: uuidv4(),
+      title,
+      author,
+      genre,
+      yearPublished: year,
+      createdBy: req.user.username,
+      createdAt: new Date().toISOString()
+    };
+
+    books.push(newBook);
+    res.status(201).json(newBook);
+  } catch (err) {
+    console.error('Error adding book:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/**
+ * @route   PUT api/books/:id
+ * @desc    Update a book
+ * @access  Private (only owner can update)
+ */
+router.put('/:id', auth, isOwner, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, author, genre, yearPublished } = req.body;
+    
+    const bookIndex = books.findIndex(book => book.id === id);
+    
+    if (bookIndex === -1) {
+      return res.status(404).json({ message: 'Book not found' });
+    }
+
+    // Check if user is the creator or admin
+    if (books[bookIndex].createdBy !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to update this book' });
+    }
+
+    // Update book
+    books[bookIndex] = {
+      ...books[bookIndex],
+      title: title || books[bookIndex].title,
+      author: author || books[bookIndex].author,
+      genre: genre || books[bookIndex].genre,
+      yearPublished: yearPublished ? parseInt(yearPublished) : books[bookIndex].yearPublished,
+      updatedAt: new Date().toISOString()
+    };
+
+    res.json(books[bookIndex]);
+  } catch (err) {
+    console.error('Error updating book:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/**
+ * @route   DELETE api/books/:id
+ * @desc    Delete a book (only owner can delete)
+ * @access  Private
+ */
+router.delete('/:id', auth, isOwner, (req, res) => {
+  try {
+    const { id } = req.params;
+    books = books.filter(book => book.id !== id);
+    res.json({ message: 'Book deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting book:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+module.exports = router;

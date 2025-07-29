@@ -54,7 +54,7 @@ const cardStyle = {
   transition: 'all 0.3s ease-in-out',
   borderRadius: '12px',
   overflow: 'hidden',
-  width: '320px', // Fixed width for cards
+  width: '400px', // Fixed width for cards
   border: '2px solid rgb(144, 186, 229)', // Blue border
   boxShadow: '0 4px 6px rgba(25, 118, 210, 0.1)',
   '&:hover': {
@@ -160,35 +160,46 @@ const BookList = () => {
 
   // Filter and pagination
   const filteredBooks = useMemo(() => {
-    let result = [...books];
-    
-    // Apply search
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(book => 
-        book.title.toLowerCase().includes(term) ||
-        book.author.toLowerCase().includes(term)
-      );
-    }
-    
-    // Apply genre filter
-    if (genreFilter && genreFilter !== 'all') {
-      result = result.filter(book => book.genre === genreFilter);
-    }
-    
-    return result;
+    return books.filter(book => {
+      const matchesSearch = searchTerm === '' || 
+        book.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        book.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        book.genre.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesGenre = genreFilter === 'all' || book.genre === genreFilter;
+      
+      return matchesSearch && matchesGenre;
+    });
   }, [books, searchTerm, genreFilter]);
-
+  
+  // Reset to first page when search or filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, genreFilter]);
+  
   // Pagination
-  const itemsPerPage = 6;
-  const totalPages = Math.ceil(filteredBooks.length / itemsPerPage);
-  const indexOfLastBook = currentPage * itemsPerPage;
-  const indexOfFirstBook = indexOfLastBook - itemsPerPage;
-  const currentBooks = filteredBooks.slice(indexOfFirstBook, indexOfLastBook);
+  const booksPerPage = 6;
+  const totalPages = Math.max(1, Math.ceil(filteredBooks.length / booksPerPage));
+  const currentBooks = filteredBooks.slice(
+    (currentPage - 1) * booksPerPage,
+    currentPage * booksPerPage
+  );
+  
+  // Ensure currentPage is within valid range
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const handlePageChange = (event, page) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  
+  // Handle search input change with debounce
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
   };
 
   const handleOpenModal = (book = null) => {
@@ -362,11 +373,11 @@ const BookList = () => {
           },
         }}>
           <TextField
-            placeholder="Search books by title or author..."
+            placeholder="Search by title, author, or genre..."
             variant="outlined"
             size="small"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -522,7 +533,7 @@ const BookList = () => {
                           fontWeight: 500,
                         }}
                       >
-                        {book.yearPublished}
+                        Published in {book.yearPublished}
                       </Typography>
                     </Box>
                   <CardActions sx={{ 
@@ -631,7 +642,7 @@ const BookList = () => {
             }}>
               <Pagination 
                 count={totalPages} 
-                page={currentPage} 
+                page={Math.min(currentPage, Math.max(1, totalPages))} 
                 onChange={handlePageChange} 
                 color="primary"
                 size={window.innerWidth < 600 ? 'small' : 'medium'}

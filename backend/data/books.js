@@ -172,12 +172,13 @@ let books = [
   },
   {
     "id": "ec4f5358-78e5-4374-812e-07e19edc8fd4",
-    "title": "The Great Gatsby",
+    "title": "The Great Gatsby - updated",
     "author": "F. Scott Fitzgerald",
     "genre": "Fiction",
     "yearPublished": 1925,
     "createdBy": "admin",
-    "createdAt": "2025-07-29T17:39:47.792Z"
+    "createdAt": "2025-07-29T17:39:47.792Z",
+    "updatedAt": "2025-07-29T19:30:42.909Z"
   },
   {
     "id": "0c2979ce-2f8a-458b-a0de-fa93630dd355",

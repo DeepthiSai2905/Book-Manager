@@ -60,9 +60,7 @@ cd book-manager
 ```bash
 cd backend
 npm install
-cp .env.example .env
-# Edit .env file with your configuration
-npm start
+npm run dev
 ```
 
 ### 3. Set up the Frontend
@@ -79,9 +77,6 @@ The application will be available at `http://localhost:3000`
 ### Backend (`.env`)
 ```
 PORT=5001
-NODE_ENV=development
-JWT_SECRET=your-super-secret-jwt-key
-JWT_EXPIRES_IN=1h
 ```
 
 ## Test Users
@@ -128,22 +123,3 @@ book-manager/
         ├── App.js         # Main app component
         └── index.js       # Entry point
 ```
-
-## Contributing
-
-1. Fork the repository
-2. Create a new branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- [Create React App](https://create-react-app.dev/)
-- [Material-UI](https://mui.com/)
-- [Express](https://expressjs.com/)
-- [JWT](https://jwt.io/)

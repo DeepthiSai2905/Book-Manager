@@ -3,7 +3,6 @@ import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { AuthProvider } from './contexts/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import PrivateRoute from './components/PrivateRoute';
 
 const theme = createTheme({
   palette: {

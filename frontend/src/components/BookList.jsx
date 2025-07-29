@@ -51,11 +51,22 @@ const cardStyle = {
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
-  transition: 'transform 0.2s',
+  transition: 'all 0.3s ease-in-out',
+  borderRadius: '12px',
+  overflow: 'hidden',
+  width: '320px', // Fixed width for cards
+  border: '2px solid rgb(144, 186, 229)', // Blue border
+  boxShadow: '0 4px 6px rgba(25, 118, 210, 0.1)',
   '&:hover': {
-    transform: 'translateY(-4px)',
-    boxShadow: 6,
+    transform: 'translateY(-6px)',
+    boxShadow: '0 8px 15px rgba(25, 118, 210, 0.2)',
+    borderColor: '#1565c0', // Darker blue on hover
   },
+  '@media (max-width: 600px)': {
+    width: '100%',
+    maxWidth: '320px',
+    margin: '0 auto',
+  }
 };
 
 const BookList = () => {
@@ -278,51 +289,115 @@ const BookList = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ 
+      p: { xs: 2, sm: 3, md: 4 },
+      maxWidth: '1600px',
+      mx: 'auto',
+    }}>
       {/* Header and Add Book Button */}
       <Box sx={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        mb: 3,
+        mb: { xs: 2, sm: 3, md: 4 },
         flexWrap: 'wrap',
-        gap: 2
+        gap: 2,
+        '& h1': {
+          fontSize: { xs: '1.5rem', sm: '1.75rem' },
+          fontWeight: 600,
+          color: 'text.primary',
+        }
       }}>
-        <Typography variant="h5" component="h1">
+        <Typography variant="h4" component="h1">
           Book Manager
         </Typography>
         <Button 
           variant="contained" 
           startIcon={<Add />} 
           onClick={() => handleOpenModal()}
-          sx={{ minWidth: '150px' }}
+          sx={{ 
+            minWidth: '150px',
+            py: 1,
+            px: 3,
+            borderRadius: '8px',
+            textTransform: 'none',
+            fontWeight: 500,
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+            '&:hover': {
+              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
+            }
+          }}
         >
           Add Book
         </Button>
       </Box>
 
       {/* Filters */}
-      <Card sx={{ mb: 3, p: 2 }}>
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+      <Card 
+        elevation={0}
+        sx={{ 
+          mb: { xs: 3, md: 4 },
+          p: { xs: 1.5, sm: 2 },
+          borderRadius: '12px',
+          backgroundColor: 'background.paper',
+          border: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Box sx={{ 
+          display: 'flex', 
+          gap: 2, 
+          flexWrap: 'wrap',
+          '& .MuiFormControl-root': {
+            flex: '1 1 300px',
+          },
+          '& .MuiOutlinedInput-root': {
+            borderRadius: '8px',
+          },
+          '& .MuiInputBase-input': {
+            py: 1.2,
+          },
+          '& .MuiSelect-select': {
+            py: '10px',
+          },
+        }}>
           <TextField
-            placeholder="Search books..."
+            placeholder="Search books by title or author..."
             variant="outlined"
             size="small"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{
-              startAdornment: <Search sx={{ color: 'action.active', mr: 1 }} />,
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search sx={{ color: 'text.secondary' }} />
+                </InputAdornment>
+              ),
+              sx: {
+                '& input::placeholder': {
+                  opacity: 0.8,
+                },
+              },
             }}
-            sx={{ flex: 1, minWidth: '200px' }}
+            sx={{ 
+              flex: 2,
+              minWidth: '200px',
+            }}
           />
           
-          <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel id="genre-filter-label">Filter by Genre</InputLabel>
+          <FormControl size="small">
+            <InputLabel id="genre-filter-label" sx={{ mt: searchTerm ? 0 : 0.5 }}>Genre</InputLabel>
             <Select
               labelId="genre-filter-label"
               value={genreFilter}
-              label="Filter by Genre"
+              label="Genre"
               onChange={(e) => setGenreFilter(e.target.value)}
+              sx={{
+                '& .MuiSelect-select': {
+                  display: 'flex',
+                  alignItems: 'center',
+                },
+              }}
             >
               <MenuItem value="all">All Genres</MenuItem>
               {availableGenres.map((genre) => (
@@ -337,64 +412,198 @@ const BookList = () => {
 
       {/* Book Grid */}
       {filteredBooks.length === 0 ? (
-        <Box sx={{ textAlign: 'center', mt: 4, p: 4, bgcolor: 'background.paper', borderRadius: 1 }}>
-          <Typography variant="h6" color="textSecondary">
+        <Box sx={{ 
+          textAlign: 'center', 
+          mt: 6, 
+          p: { xs: 4, sm: 6 },
+          backgroundColor: 'background.paper',
+          borderRadius: '12px',
+          border: '1px dashed',
+          borderColor: 'divider',
+        }}>
+          <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
             {searchTerm || genreFilter !== 'all' 
-              ? 'No books match your filters.' 
-              : 'No books found. Add a new book to get started!'}
+              ? 'No books match your search criteria' 
+              : 'Your book collection is empty'}
           </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ opacity: 0.8, mb: 2 }}>
+            {searchTerm || genreFilter !== 'all'
+              ? 'Try adjusting your search or filters'
+              : 'Add your first book to get started!'}
+          </Typography>
+          {!(searchTerm || genreFilter !== 'all') && (
+            <Button 
+              variant="contained" 
+              startIcon={<Add />}
+              onClick={() => handleOpenModal()}
+              sx={{ mt: 1 }}
+            >
+              Add Your First Book
+            </Button>
+          )}
         </Box>
       ) : (
         <>
-          <Grid container spacing={3}>
+          <Grid 
+            container 
+            spacing={{ xs: 3, sm: 4, md: 4 }}
+            sx={{
+              justifyContent: { xs: 'center', sm: 'flex-start' },
+              '& .MuiGrid-item': {
+                display: 'flex',
+                justifyContent: 'center',
+              }
+            }}
+          >
             {currentBooks.map((book) => (
-              <Grid item xs={12} sm={6} md={4} key={book.id}>
+              <Grid item key={book.id} sx={{ display: 'flex' }}>
                 <Card sx={cardStyle}>
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Typography variant="h6" component="h2" gutterBottom>
+                  <CardContent sx={{ 
+                    flexGrow: 1,
+                    p: { xs: 2, sm: 3 },
+                    '&:last-child': {
+                      pb: { xs: 2, sm: 3 },
+                    }
+                  }}>
+                    <Typography 
+                      variant="h6" 
+                      component="h2" 
+                      sx={{ 
+                        mb: 1.5,
+                        fontWeight: 600,
+                        fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                        lineHeight: 1.3,
+                        minHeight: '3em',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}
+                    >
                       {book.title}
                     </Typography>
-                    <Typography color="textSecondary" gutterBottom>
+                    <Typography 
+                      color="text.secondary" 
+                      sx={{ 
+                        mb: 2,
+                        fontStyle: 'italic',
+                        fontSize: '0.95rem',
+                      }}
+                    >
                       by {book.author}
                     </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      flexWrap: 'wrap',
+                      gap: 1,
+                      mb: 2,
+                      alignItems: 'center',
+                    }}>
                       <Chip 
                         label={book.genre} 
                         size="small" 
                         color="primary" 
-                        variant="outlined" 
-                        sx={{ mr: 1 }}
+                        variant="outlined"
+                        sx={{
+                          borderRadius: '6px',
+                          fontWeight: 500,
+                          borderWidth: '1.5px',
+                          '& .MuiChip-label': {
+                            px: 1,
+                          },
+                        }}
                       />
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography 
+                        variant="body2" 
+                        color="text.secondary"
+                        sx={{
+                          ml: 'auto',
+                          fontSize: '0.85rem',
+                          fontWeight: 500,
+                        }}
+                      >
                         {book.yearPublished}
                       </Typography>
                     </Box>
-                  </CardContent>
-                  <CardActions sx={{ justifyContent: 'flex-end', p: 2 }}>
+                  <CardActions sx={{ 
+                    p: { xs: 1.5, sm: 2 },
+                    pt: 0,
+                    mt: 'auto',
+                    borderTop: '1px solid',
+                    borderColor: 'divider',
+                  }}>
                     {user && user.username === book.createdBy ? (
-                      <>
+                      <Box sx={{ 
+                        display: 'flex',
+                        gap: 1,
+                        width: '100%',
+                        '& .MuiButton-root': {
+                          flex: 1,
+                          py: 0.75,
+                          borderRadius: '6px',
+                          textTransform: 'none',
+                          fontWeight: 500,
+                          fontSize: '0.85rem',
+                          '& .MuiSvgIcon-root': {
+                            fontSize: '1.1rem',
+                            mr: 0.5,
+                          },
+                        },
+                      }}>
                         <Button 
+                          variant="outlined"
                           size="small" 
                           onClick={() => handleOpenModal(book)}
-                          startIcon={<Edit />}
+                          startIcon={<Edit fontSize="small" />}
+                          sx={{
+                            color: 'primary.main',
+                            borderColor: 'divider',
+                            '&:hover': {
+                              borderColor: 'primary.main',
+                              backgroundColor: 'action.hover',
+                            },
+                          }}
                         >
                           Edit
                         </Button>
                         <Button 
+                          variant="outlined"
                           size="small" 
                           color="error"
                           onClick={() => handleDeleteClick(book)}
-                          startIcon={<Delete />}
+                          startIcon={<Delete fontSize="small" />}
+                          sx={{
+                            borderColor: 'divider',
+                            '&:hover': {
+                              borderColor: 'error.main',
+                              backgroundColor: 'rgba(211, 47, 47, 0.04)',
+                            },
+                          }}
                         >
                           Delete
                         </Button>
-                      </>
+                      </Box>
                     ) : (
-                      <Typography variant="caption" color="text.secondary">
-                        Created by {book.createdBy}
+                      <Typography 
+                        variant="caption" 
+                        color="text.secondary"
+                        sx={{
+                          display: 'block',
+                          width: '100%',
+                          textAlign: 'right',
+                          fontSize: '0.75rem',
+                          opacity: 0.8,
+                          '&:before': {
+                            content: '"Added by "',
+                            opacity: 0.7,
+                          }
+                        }}
+                      >
+                        {book.createdBy}
                       </Typography>
                     )}
                   </CardActions>
+                  </CardContent>
                 </Card>
               </Grid>
             ))}
@@ -402,14 +611,45 @@ const BookList = () => {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              mt: { xs: 3, sm: 4, md: 5 },
+              '& .MuiPagination-ul': {
+                flexWrap: 'nowrap',
+              },
+              '& .MuiPaginationItem-root': {
+                margin: '0 4px',
+                minWidth: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                '&.Mui-selected': {
+                  fontWeight: 600,
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                },
+              },
+            }}>
               <Pagination 
                 count={totalPages} 
                 page={currentPage} 
                 onChange={handlePageChange} 
                 color="primary"
+                size={window.innerWidth < 600 ? 'small' : 'medium'}
                 showFirstButton 
                 showLastButton
+                siblingCount={window.innerWidth < 600 ? 0 : 1}
+                boundaryCount={1}
+                sx={{
+                  '& .MuiPaginationItem-page': {
+                    '&.Mui-selected': {
+                      backgroundColor: 'primary.main',
+                      color: 'primary.contrastText',
+                      '&:hover': {
+                        backgroundColor: 'primary.dark',
+                      },
+                    },
+                  },
+                }}
               />
             </Box>
           )}

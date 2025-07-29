@@ -31,11 +31,7 @@ const saveBooks = () => {
   );
 };
 
-/**
- * @route   GET api/books
- * @desc    Get all books for the logged-in user
- * @access  Private
- */
+
 router.get('/', auth, (req, res) => {
   try {
     // Only return books created by the logged-in user
@@ -95,11 +91,58 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-/**
- * @route   PUT api/books/:id
- * @desc    Update a book
- * @access  Private (only owner can update)
- */
+// Pushing books in bulk to populate initial data triggered in backend - /api/books/bulk
+/*router.post('/bulk', auth, (req, res) => {
+  console.log("Bulk books received:", req.body);
+  try {
+    const newBooks = req.body;
+
+    if (!Array.isArray(newBooks) || newBooks.length === 0) {
+      return res.status(400).json({ message: 'Please provide an array of books' });
+    }
+
+    const invalidBooks = [];
+    const addedBooks = [];
+
+    newBooks.forEach((book, index) => {
+      const { title, author, genre, yearPublished } = book;
+
+      const year = parseInt(yearPublished);
+
+      if (!title || !author || !genre || isNaN(year) || year < 0 || year > new Date().getFullYear() + 1) {
+        invalidBooks.push({ index, reason: 'Invalid or missing fields', book });
+        return;
+      }
+
+      const newBook = {
+        id: uuidv4(),
+        title,
+        author,
+        genre,
+        yearPublished: year,
+        createdBy: req.user.username,
+        createdAt: new Date().toISOString()
+      };
+
+      books.push(newBook);
+      addedBooks.push(newBook);
+    });
+
+    saveBooks(); // Save updated list to file
+    console.log("Bulk books added:", addedBooks);
+    res.status(201).json({
+      added: addedBooks.length,
+      skipped: invalidBooks.length,
+      addedBooks,
+      errors: invalidBooks
+    });
+  } catch (err) {
+    console.error('Error adding multiple books:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});*/
+
+
 router.put('/:id', auth, isOwner, (req, res) => {
   try {
     const { id } = req.params;
@@ -130,11 +173,7 @@ router.put('/:id', auth, isOwner, (req, res) => {
   }
 });
 
-/**
- * @route   DELETE api/books/:id
- * @desc    Delete a book (only owner can delete)
- * @access  Private
- */
+
 router.delete('/:id', auth, isOwner, (req, res) => {
   try {
     const { id } = req.params;
